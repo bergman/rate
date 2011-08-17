@@ -1,0 +1,4 @@
+Test implementations of some rate limit algorithms.
+
+http://en.wikipedia.org/wiki/Leaky_bucket
+http://en.wikipedia.org/wiki/Token_bucket
