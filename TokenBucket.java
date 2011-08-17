@@ -1,43 +1,32 @@
 import java.util.concurrent.Semaphore;
 
 /**
- * 
- */
-
-/**
  * @author Bergman
  *
  */
 public class TokenBucket {
+   private final int S = 10;
    private final Semaphore tokens = new Semaphore(0);
    private int b;
    private int r;
-   String chars = "█▇▆▅▄▃▂▁";
+   private int tpS;
 
    public TokenBucket(int limit, int rate) {
       b = limit;
       r = rate;
+      tpS = (r * S) / 1000;
+      if (tpS <= 0)
+         throw new IllegalArgumentException("rate must be >= " + (1000 / S) + " to satisfy (rate * " + S + ")/1000 >= 1");
+
       tokens.release(b);
       new Thread(new Runnable() {
          public void run() {
-            int printouts = 0;
             while (true) {
-               if (tokens.availablePermits() < b && System.currentTimeMillis() % r == 0) {
-                  tokens.release();
-                  try {
-                     System.out.print(chars.charAt((chars.length() - 1) / tokens.availablePermits()));
-                     if (printouts++ % 25 == 0)
-                        System.out.println();
-                  } catch (ArithmeticException e) {
-                     System.out.print(" ");
-                     if (printouts++ % 25 == 0)
-                        System.out.println();
-                  }
-               }
+               int t = Math.min(b - tokens.availablePermits(), tpS);
+               tokens.release(t);
                try {
-                  Thread.sleep(10);
+                  Thread.sleep(S);
                } catch (InterruptedException e) {
-                  // TODO Auto-generated catch block
                   e.printStackTrace();
                }
             }
@@ -47,5 +36,9 @@ public class TokenBucket {
 
    public void consume() {
       tokens.acquireUninterruptibly();
+   }
+
+   public boolean tryConsume() {
+      return tokens.tryAcquire();
    }
 }
