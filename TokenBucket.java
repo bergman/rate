@@ -1,37 +1,31 @@
+import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
 
 /**
  * @author Bergman
  *
  */
 public class TokenBucket {
-   private final int S = 10;
+
    private final Semaphore tokens = new Semaphore(0);
    private int b;
    private int r;
-   private int tpS;
+   private ScheduledThreadPoolExecutor executor = new ScheduledThreadPoolExecutor(1);
 
    public TokenBucket(int limit, int rate) {
       b = limit;
       r = rate;
-      tpS = (r * S) / 1000;
-      if (tpS <= 0)
-         throw new IllegalArgumentException("rate must be >= " + (1000 / S) + " to satisfy (rate * " + S + ")/1000 >= 1");
 
       tokens.release(b);
-      new Thread(new Runnable() {
+      Runnable task = new Runnable() {
          public void run() {
-            while (true) {
-               int t = Math.min(b - tokens.availablePermits(), tpS);
-               tokens.release(t);
-               try {
-                  Thread.sleep(S);
-               } catch (InterruptedException e) {
-                  e.printStackTrace();
-               }
-            }
+            if (tokens.availablePermits() < b)
+               tokens.release();
          }
-      }).start();
+      };
+
+      executor.scheduleAtFixedRate(task, 0, 1000000 / r, TimeUnit.MICROSECONDS);
    }
 
    public void consume() {
@@ -41,4 +35,5 @@ public class TokenBucket {
    public boolean tryConsume() {
       return tokens.tryAcquire();
    }
+
 }

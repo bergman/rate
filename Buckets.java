@@ -13,7 +13,7 @@ public class Buckets {
       int pos = 0;
       int nnn = 0;
 
-      TokenBucket bucket = new TokenBucket(1000, 150);
+      TokenBucket bucket = new TokenBucket(1000, 200);
       Random rnd = new Random();
 
       while (true) {
