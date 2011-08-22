@@ -1,3 +1,6 @@
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Random;
 
 /**
@@ -6,42 +9,42 @@ import java.util.Random;
  */
 public class Buckets {
    public static void main(String[] args) throws Exception {
-      //System.out.println("Tokens: " + Integer.parseInt(args[0]));
-      //System.out.println("Threads: " + Integer.parseInt(args[1]));
-
-      int[] cs = new int[5];
-      int pos = 0;
-      int nnn = 0;
-
-      TokenBucket bucket = new TokenBucket(1000, 200);
       Random rnd = new Random();
 
+      Map<String, BucketValues> sites = new HashMap<String, BucketValues>();
+      sites.put("foo", new BucketValues(10, 500));
+      sites.put("bar", new BucketValues(100, 50));
+      sites.put("baz", new BucketValues(500, 1000));
+
+      Map<String, TokenBucket> buckets = new HashMap<String, TokenBucket>();
+      for (Entry<String, BucketValues> e : sites.entrySet())
+         buckets.put(e.getKey(), new TokenBucket(e.getValue().limit, e.getValue().rate));
+
       while (true) {
-         int consumers = rnd.nextInt(1000);
-         for (int i = 0; i < consumers; ++i) {
-            bucket.consume();
-            System.out.print("x");
-            if (nnn++ % 50 == 0)
-               System.out.println();
-            int npos = (int) ((System.currentTimeMillis() / 1000) % cs.length);
-            if (npos != pos)
-               cs[npos] = 0;
-            pos = npos;
-            cs[pos]++;
+         int consumers = 200 + rnd.nextInt(800);
+         System.out.println("\nConsumers: " + consumers);
+         for (Entry<String, TokenBucket> e : buckets.entrySet()) {
+            TokenBucket bucket = e.getValue();
+            BucketValues values = sites.get(e.getKey());
+
+            int gotThrough = 0;
+            for (int i = 0; i < consumers; ++i)
+               if (bucket.tryAcquire())
+                  gotThrough++;
+
+            System.out.printf("r=%4d\tb=%4d\t%4d\t%5.1f %%\n", values.rate, values.limit, gotThrough, (100 * (double) gotThrough / consumers));
          }
-         System.out.println();
-         System.out.println(speed(cs, pos));
-         Thread.sleep(rnd.nextInt(1000));
+         Thread.sleep(1000);
       }
    }
 
-   private static double speed(int[] cs, int pos) {
-      int t = 0;
-      for (int i = 0; i < cs.length; i++) {
-         if (i == pos)
-            continue;
-         t += cs[i];
+   public static class BucketValues {
+      int rate;
+      int limit;
+
+      public BucketValues(int rate, int limit) {
+         this.rate = rate;
+         this.limit = limit;
       }
-      return (double) t / (cs.length - 1);
    }
 }

@@ -1,3 +1,4 @@
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
@@ -7,33 +8,58 @@ import java.util.concurrent.TimeUnit;
  *
  */
 public class TokenBucket {
+   private final static ScheduledThreadPoolExecutor executor = new ScheduledThreadPoolExecutor(1);
+   private final Semaphore semaphore = new Semaphore(0);
+   private int limit;
+   private int rate;
+   private ScheduledFuture<?> scheduledTask;
 
-   private final Semaphore tokens = new Semaphore(0);
-   private int b;
-   private int r;
-   private ScheduledThreadPoolExecutor executor = new ScheduledThreadPoolExecutor(1);
-
+   /**
+    * @param limit the number of tokens this bucket can hold
+    * @param rate the number of tokens added to the bucket every second
+    */
    public TokenBucket(int limit, int rate) {
-      b = limit;
-      r = rate;
+      semaphore.release(limit);
+      this.limit = limit;
+      setRate(rate);
+   }
 
-      tokens.release(b);
+   public int getLimit() {
+      return limit;
+   }
+
+   public int getRate() {
+      return rate;
+   }
+
+   public void release(int tokens) {
+      semaphore.release(tokens);
+   }
+
+   public void setLimit(int limit) {
+      this.limit = limit;
+   }
+
+   public void setRate(int rate) {
+      this.rate = rate;
+
       Runnable task = new Runnable() {
          public void run() {
-            if (tokens.availablePermits() < b)
-               tokens.release();
+            if (semaphore.availablePermits() < limit)
+               semaphore.release();
          }
       };
 
-      executor.scheduleAtFixedRate(task, 0, 1000000 / r, TimeUnit.MICROSECONDS);
+      int initialDelay = 0;
+      long period = 1000000 / rate;
+
+      if (scheduledTask != null)
+         scheduledTask.cancel(false);
+
+      scheduledTask = executor.scheduleAtFixedRate(task, initialDelay, period, TimeUnit.MICROSECONDS);
    }
 
-   public void consume() {
-      tokens.acquireUninterruptibly();
+   public boolean tryAcquire() {
+      return semaphore.tryAcquire();
    }
-
-   public boolean tryConsume() {
-      return tokens.tryAcquire();
-   }
-
 }
