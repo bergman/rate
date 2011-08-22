@@ -1,51 +1,39 @@
+import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.Semaphore;
-
-/**
- * 
- */
+import java.util.concurrent.TimeUnit;
 
 /**
  * @author Bergman
  *
  */
 public class TokenBucket {
+
    private final Semaphore tokens = new Semaphore(0);
    private int b;
    private int r;
-   String chars = "█▇▆▅▄▃▂▁";
+   private ScheduledThreadPoolExecutor executor = new ScheduledThreadPoolExecutor(1);
 
    public TokenBucket(int limit, int rate) {
       b = limit;
       r = rate;
+
       tokens.release(b);
-      new Thread(new Runnable() {
+      Runnable task = new Runnable() {
          public void run() {
-            int printouts = 0;
-            while (true) {
-               if (tokens.availablePermits() < b && System.currentTimeMillis() % r == 0) {
-                  tokens.release();
-                  try {
-                     System.out.print(chars.charAt((chars.length() - 1) / tokens.availablePermits()));
-                     if (printouts++ % 25 == 0)
-                        System.out.println();
-                  } catch (ArithmeticException e) {
-                     System.out.print(" ");
-                     if (printouts++ % 25 == 0)
-                        System.out.println();
-                  }
-               }
-               try {
-                  Thread.sleep(10);
-               } catch (InterruptedException e) {
-                  // TODO Auto-generated catch block
-                  e.printStackTrace();
-               }
-            }
+            if (tokens.availablePermits() < b)
+               tokens.release();
          }
-      }).start();
+      };
+
+      executor.scheduleAtFixedRate(task, 0, 1000000 / r, TimeUnit.MICROSECONDS);
    }
 
    public void consume() {
       tokens.acquireUninterruptibly();
    }
+
+   public boolean tryConsume() {
+      return tokens.tryAcquire();
+   }
+
 }
