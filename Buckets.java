@@ -26,6 +26,7 @@ public class Buckets {
          int consumers = rnd.nextInt(1000);
          System.out.println();
          System.out.println("Consumers: " + consumers);
+         System.out.printf("\trate\tlimit\tdrop\tclear\tbefore\tafter\n");
          for (Entry<String, TokenBucket> e : buckets.entrySet()) {
             TokenBucket bucket = e.getValue();
             RateLimit values = sites.get(e.getKey());
@@ -38,7 +39,7 @@ public class Buckets {
                   gotThrough++;
                else
                   totalDropped++;
-            System.out.printf("r=%4d\tb=%4d\t%4d\t%3.0f %%\tbefore & after: %4d\t%4d\n", values.rate, values.limit, consumers - gotThrough,
+            System.out.printf("%s\t%4d\t%4d\t%4d\t%3.0f %%\t%4d\t%4d\n", e.getKey(), values.rate, values.limit, consumers - gotThrough,
                   (100 * (double) gotThrough / consumers), before, bucket.getTokens());
          }
          totalConsumers += consumers * sites.size();
