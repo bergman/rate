@@ -21,17 +21,25 @@ public class TokenBucket {
    public TokenBucket(int limit, int rate) {
       semaphore.release(limit);
       this.limit = limit;
-      setRate(rate);
+      this.rate = rate;
+
+      scheduleReplenishTask();
    }
 
    public int getLimit() {
       return limit;
    }
 
+   /**
+    * @return rate the number of tokens added to the bucket every second
+    */
    public int getRate() {
       return rate;
    }
 
+   /**
+    * @return the number of available tokens in this bucket as of right now.
+    */
    public int getTokens() {
       return semaphore.availablePermits();
    }
@@ -44,8 +52,27 @@ public class TokenBucket {
       this.limit = limit;
    }
 
+   /**
+    * @param rate the number of tokens added to the bucket every second
+    */
    public void setRate(int rate) {
       this.rate = rate;
+
+      scheduleReplenishTask();
+   }
+
+   public boolean tryAcquire() {
+      return semaphore.tryAcquire();
+   }
+
+   private void scheduleReplenishTask() {
+      int initialDelay = 0;
+      // 1,000,000 microseconds = 1 second
+      long period = 1000000 / rate;
+
+      // cancel the old task but let it run through if it's still executing
+      if (scheduledTask != null)
+         scheduledTask.cancel(false);
 
       Runnable task = new Runnable() {
          public void run() {
@@ -54,16 +81,6 @@ public class TokenBucket {
          }
       };
 
-      int initialDelay = 0;
-      long period = 1000000 / rate;
-
-      if (scheduledTask != null)
-         scheduledTask.cancel(false);
-
       scheduledTask = executor.scheduleAtFixedRate(task, initialDelay, period, TimeUnit.MICROSECONDS);
-   }
-
-   public boolean tryAcquire() {
-      return semaphore.tryAcquire();
    }
 }
