@@ -32,6 +32,10 @@ public class TokenBucket {
       return rate;
    }
 
+   public int getTokens() {
+      return semaphore.availablePermits();
+   }
+
    public void release(int tokens) {
       semaphore.release(tokens);
    }

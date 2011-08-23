@@ -11,38 +11,47 @@ public class Buckets {
    public static void main(String[] args) throws Exception {
       Random rnd = new Random();
 
-      Map<String, BucketValues> sites = new HashMap<String, BucketValues>();
-      sites.put("foo", new BucketValues(10, 500));
-      sites.put("bar", new BucketValues(100, 50));
-      sites.put("baz", new BucketValues(500, 1000));
+      Map<String, RateLimit> sites = new HashMap<String, RateLimit>();
+      sites.put("foo", new RateLimit(200, 1000));
+      sites.put("bar", new RateLimit(400, 1000));
+      sites.put("baz", new RateLimit(800, 1000));
 
       Map<String, TokenBucket> buckets = new HashMap<String, TokenBucket>();
-      for (Entry<String, BucketValues> e : sites.entrySet())
+      for (Entry<String, RateLimit> e : sites.entrySet())
          buckets.put(e.getKey(), new TokenBucket(e.getValue().limit, e.getValue().rate));
 
+      long totalDropped = 0;
+      long totalConsumers = 0;
       while (true) {
-         int consumers = 200 + rnd.nextInt(800);
-         System.out.println("\nConsumers: " + consumers);
+         int consumers = rnd.nextInt(1000);
+         System.out.println();
+         System.out.println("Consumers: " + consumers);
          for (Entry<String, TokenBucket> e : buckets.entrySet()) {
             TokenBucket bucket = e.getValue();
-            BucketValues values = sites.get(e.getKey());
+            RateLimit values = sites.get(e.getKey());
 
+            int before = bucket.getTokens();
             int gotThrough = 0;
+
             for (int i = 0; i < consumers; ++i)
                if (bucket.tryAcquire())
                   gotThrough++;
-
-            System.out.printf("r=%4d\tb=%4d\t%4d\t%5.1f %%\n", values.rate, values.limit, gotThrough, (100 * (double) gotThrough / consumers));
+               else
+                  totalDropped++;
+            System.out.printf("r=%4d\tb=%4d\t%4d\t%3.0f %%\tbefore & after: %4d\t%4d\n", values.rate, values.limit, consumers - gotThrough,
+                  (100 * (double) gotThrough / consumers), before, bucket.getTokens());
          }
-         Thread.sleep(1000);
+         totalConsumers += consumers * sites.size();
+         System.out.printf("Dropped: %3.0f %%\n", (double) 100 * totalDropped / totalConsumers);
+         Thread.sleep(500 + rnd.nextInt(500));
       }
    }
 
-   public static class BucketValues {
+   public static class RateLimit {
       int rate;
       int limit;
 
-      public BucketValues(int rate, int limit) {
+      public RateLimit(int rate, int limit) {
          this.rate = rate;
          this.limit = limit;
       }
